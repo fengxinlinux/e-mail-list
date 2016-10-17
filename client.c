@@ -45,7 +45,7 @@ typedef struct     //记录用户账号信息
 char* add_len(char* out);  //在数据包前加两个字节的包长度函数
 char* delete_len(char* recv_buf);    //将数据包前两个字节删除函数
 void login(int conn_fd);    //登陆函数
-void register(int conn_fd);  //注册函数
+void register_(int conn_fd);  //注册函数
 void login_register(int conn_fd); //登陆与注册主界面函数
 void my_err();  //自定义错误函数
 void my_send(int conn_fd,char* send_buf); //自定义发送函数
@@ -80,19 +80,19 @@ void login(int conn_fd)  //登陆函数
     char account[50]; //储存用户输入的账号
     char passwd[50];  //储存用户输入的密码
     int len;      //记录输入的长度
-    cJSON *usr;  //json储存用户账号对象
+    cJSON *json;  //json储存用户账号对象
     char *out;  //储存json打印字符串
     char *send_buf; //储存发送数据包
     char recv_buf[1000];  //储存接收数据包
-    int flag;  //标志位
+    cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
     printf("请输入账号:");
     scanf("%s\n",account);
-    while((len=strlen(accout))>20) //输入长度大于20
+    while((len=strlen(account))>20) //输入长度大于20
     {
         printf("账号不能超过20个字符\n");
-        scanf("%s\n",accout);
+        scanf("%s\n",account);
     }
     printf("请输入密码:");
     scanf("%s\n",passwd);
@@ -102,11 +102,11 @@ void login(int conn_fd)  //登陆函数
         scanf("%s\n",passwd);
     }
 
-    usr=cJSON_CreateObject(); //创建根数据对象
-    cJSON_AddNumberToObject(usr,"flag",1); //加入标志位键值
-    cJSON_AddStringToObject(usr,"account",account); //加入账号键值
-    cJSON_AddStringToObject(usr,"passwd",passwd);  //加入密码键值
-    out=cJSON_Print(usr);  //打印json
+    json=cJSON_CreateObject(); //创建根数据对象
+    cJSON_AddNumberToObject(json,"flag",1); //加入标志位键值
+    cJSON_AddStringToObject(json,"account",account); //加入账号键值
+    cJSON_AddStringToObject(json,"passwd",passwd);  //加入密码键值
+    out=cJSON_Print(json);  //打印json
 
     send_buf=add_len(out);
     free(out); //释放内存
@@ -116,9 +116,9 @@ void login(int conn_fd)  //登陆函数
     out=delete_len(recv_buf); //得到json字符串
 
     json=cJSON_Parse(out);  //解析成cjson形式
-    flag=cJSON_GetObjectItem(json,"flag"); //获得服务器返回的标志位
+    json_flag=cJSON_GetObjectItem(json,"flag"); //获得服务器返回的标志位
 
-    switch(flag)
+    switch(json_flag->valueint)
     {
         case 11:   //登陆成功
         {
@@ -128,26 +128,82 @@ void login(int conn_fd)  //登陆函数
         }
         case 111:  //登陆失败
         {
-            printf("账号或密码错误\n")；
+            printf("账号或密码错误\n");
             login_register(conn_fd);
             break;
         }
     }   
 
 }
-void register(int conn_fd) //注册函数
+void register_(int conn_fd) //注册函数
 {
-    char accout[21];  //储存用户输入的账号
+    char account[21];  //储存用户输入的账号
     char passwd[21];  //储存用户输入的密码
     char passwd2[21]; //储存用户第二次输入的密码
     int len;   //记录输入的长度
-    cJSON *usr;   //json储存用户账号对象
+    cJSON *json;   //json储存用户账号对象
     char *out;    //储存json打印字符串
     char *send_buf;   //储存发送数据包
     char recv_buf[1000];   //储存接收数据包
-    int flag;  //标志位
-    
+    cJSON *json_flag;  //标志位
 
+    system("clear"); //清屏
+    printf("请输入账号:");
+    scanf("%s\n",account);
+    while((len=strlen(account))>20) //输入长度大于20
+    {
+        printf("账号不能超过20个字符\n");
+        scanf("%s\n",account);
+    }
+    printf("请输入密码:");
+    scanf("%s\n",passwd);
+    while((len=strlen(account))>0)
+    {
+        printf("密码不能超过20个字符\n");
+        scanf("%s\n",passwd);
+    }
+    printf("请再次输入密码:");
+    scanf("%s\n",passwd2);
+    while(strcmp(passwd,passwd2)!=0)
+    {
+        printf("输入的两次密码不相同,请重新输入\n");
+        printf("请输入密码:");
+        scanf("%s",passwd);
+        printf("请再次输入密码:");
+        scanf("%s",passwd2);
+    }
+
+    json=cJSON_CreateObject(); //创建根数据对象
+    cJSON_AddNumberToObject(json,"flag",2); //加入标志位键值
+    cJSON_AddStringToObject(json,"account",account); //加入账号键值
+    cJSON_AddStringToObject(json,"passwd",passwd);  //加入密码键值
+    out=cJSON_Print(json);  //打印json
+
+    send_buf=add_len(out);
+    free(out); //释放内存
+    cJSON_Delete(json);  //释放内存
+    my_send(conn_fd,send_buf); //发送数据
+    my_recv(conn_fd,recv_buf); //接收数据
+    out=delete_len(recv_buf); //得到json字符串
+
+    json=cJSON_Parse(out);  //解析成cjson形式
+    json_flag=cJSON_GetObjectItem(json,"flag"); //获得服务器返回的标志位
+
+    switch(json_flag->valueint)
+    {
+        case 22:   //注册成功
+        {
+            printf("%s注册成功\n",account);
+            sleep(2);  //停留2秒
+            login_register(conn_fd);
+        }
+        case 111:  //注册失败
+        {
+            printf("账号已存在\n");
+            login_register(conn_fd);
+            break;
+        }
+    }   
 
 }
 void my_err(char* err_string,int line)      //自定义错误函数
@@ -230,7 +286,10 @@ void login_register(int conn_fd)  //登陆与注册主界面函数
             
         }
         case '2':    //注册
-        {}
+        {
+            register_(conn_fd);
+            break;
+        }
         case '3':   //退出系统
         {
             exit(0);
