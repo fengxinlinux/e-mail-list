@@ -48,11 +48,11 @@ typedef struct     //记录用户账号信息
 
 void my_err(const char*err_string,int line);   //自定义错误函数
 char* my_time();      //输出当前时间函数
-void my_send(int conn_fd,char* send_buf); //自定义发送函数
-void my_recv(int conn_fd,char* recv_buf);  //自定义接收函数
+void my_send(int conn_fd,char* send_buf,int len); //自定义发送函数
+void my_recv(int conn_fd,char* recv_buf,int len);  //自定义接收函数
 void contents_create();  //创建服务器初始化所需目录及文件
-char* add_len(char* out);  //在数据包前加两个字节的包长度函数
-char* delete_len(char* recv_buf);    //将数据包前两个字节删除函数
+void add_len(char* out,char* send_buf);  //在数据包前加两个字节的包长度函数
+char* delete_len(char* recv_buf,int len);    //将数据包前两个字节删除函数
 void deal_main(int conn_fd,int flag,char* out);    //主功能处理函数
 void server_recv(int conn_fd);    //服务器接收并解析数据包函数
 void login(int conn_fd,char* out);   //登陆函数
@@ -77,34 +77,40 @@ char* my_time()    //输出当前时间函数
     return p;
 }
 
-void my_send(int conn_fd,char* send_buf)   //自定义发送函数
+void my_send(int conn_fd,char* send_buf,int buf_len)   //自定义发送函数
 {
-    if(send(conn_fd,send_buf,sizeof(send_buf),0)<0)
+    if(send(conn_fd,send_buf,buf_len,0)<0)
     {
         my_err("send",__LINE__);
     }
 }
 
-void my_recv(int conn_fd,char* recv_buf)  //自定义接收函数
+void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
 {
     int len; //储存接收数据大小
     int ret; //记录recv函数返回值
     int sum=0;  //储存已接收的字节大小
+
+    printf("buf_len=%d\n",buf_len);//////////////
     
-    if((ret=recv(conn_fd,recv_buf,sizeof(recv_buf),0))<0)
+    if((ret=recv(conn_fd,recv_buf,buf_len,0))<0) 
     {
         my_err("recv",__LINE__);
     }
+    printf("111\n");//////////////
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
+    printf("len=%d\n",len);////////////////////
     sum+=ret;
-    while(sum!=len)
+    printf("sum=%d\n",sum);  /////////////////
+   /* while(sum!=len)
     {
+        printf("2222\n");/////////////////
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    }
+    }  */
 
 }
 
@@ -118,7 +124,6 @@ void contents_create()  //创建服务器初始化所需目录及文件
     mkdir("mail_list/user",0777); //创建所有用户主目录
     mkdir("mail_list/group",0777);  //创建所有群主目录
     mkdir("mail_list/mail",0777);  //储存所有帖子目录
-
     fd=open("mail_list/allgroup",O_RDWR|O_CREAT|O_APPEND,0777); //创建储存当前所有的群信息的文件(smallgroup)
     close(fd);
     fd=open("mail_list/groupnum",O_RDWR|O_CREAT|O_APPEND,0777);//创建建群分配的账号
@@ -136,24 +141,24 @@ void contents_create()  //创建服务器初始化所需目录及文件
 
 }
 
-char* add_len(char* out)  //在数据包前加两个字节的包长度函数
+void add_len(char* out,char* send_buf)  //在数据包前加两个字节的包长度函数
 {
-    int len=sizeof(out);  //储存数据包长度
-    char* send_buf;  //储存发送的数据包
-    send_buf=(char*)malloc(len+2);   //分配加长度后的数据空间
+    int len=strlen(out)+3;  //储存数据包长度
+    //char* send_buf=(char*)malloc(len);
 
     send_buf[0]=len&0xff;  //低8位储存在send_buf第一个字节
     send_buf[1]=(len>>8)&0xff;  //高8位储存在send_buf的第二个字节
     strcpy(send_buf+2,out);   //将json数据包里的内容复制到send_buf中
 
-    return send_buf;
+    //return send_buf;
 
 }
 
-char* delete_len(char* recv_buf) //将数据包前两个字节删除函数
+char* delete_len(char* recv_buf,int len) //将数据包前两个字节删除函数
 {
-    int len=sizeof(recv_buf)-2; //储存json字符串长度
     char *out; //储存json字符串
+    len=len-2;
+    printf("len=%d\n",len); /////////////
     out=(char*)malloc(len);  //分配空间
     strcpy(out,recv_buf+2);  //将数据包里的json字符串复制到out中
 
@@ -178,13 +183,15 @@ void deal_main(int conn_fd,int flag,char *out)    //主功能处理函数
 }
 void server_recv(int conn_fd)    //服务器接收并解析数据包函数
 {
-    char recv_buf[20000];   //储存接收的json形式的数据
+    printf("2\n");/////////////////////
+    char recv_buf[1000];   //储存接收的json形式的数据
     char *out;  //储存json字符串
     cJSON * json_flag;  //储存标志位
     cJSON * json;  //json根对象
     
-    my_recv(conn_fd,recv_buf);   //接收数据包
-    out=delete_len(recv_buf);    //去掉包长度数据
+    my_recv(conn_fd,recv_buf,sizeof(recv_buf));   //接收数据包
+    printf("3\n");///////////////
+    out=delete_len(recv_buf,sizeof(recv_buf));    //去掉包长度数据
     json=cJSON_Parse(out); //解析成cjson形式
     json_flag=cJSON_GetObjectItem(json,"flag");   //获得服务器返回标志位
 
@@ -201,7 +208,7 @@ void login(int conn_fd,char* out)   //登陆函数
     int ret=0; //记录是否登陆成功，若成功则为1;
     DIR* dp;   //储存目录打开返回值
     struct dirent * dir;  //储存目录信息
-    char *send_buf;  //发送数据的储存空间
+    char send_buf[1000];  //发送数据的储存空间
     char path[PATH_MAX+1]; //记录文件打开路径
     int fd;    //文件描述符
     
@@ -214,7 +221,7 @@ void login(int conn_fd,char* out)   //登陆函数
     cJSON_Delete(json); //释放内存
     free(out);
 
-    if((dp=opendir("/user"))==NULL)  //打开用户目录
+    if((dp=opendir("mail_list/user"))==NULL)  //打开用户目录
     {
         my_err("opendir",__LINE__);
     }
@@ -222,7 +229,7 @@ void login(int conn_fd,char* out)   //登陆函数
     {
         if(strcmp(number.account,dir->d_name)==0) //用户文件夹已存在
         {
-            strcpy(path,"user/");
+            strcpy(path,"mail_list/user/");
             strcat(path,number.account);
             strcat(path,"/userinfo");
             fd=open(path,O_RDWR);
@@ -246,16 +253,16 @@ void login(int conn_fd,char* out)   //登陆函数
         json=cJSON_CreateObject(); //创建根数据对象
         cJSON_AddNumberToObject(json,"flag",11); //加入标志位键值
         out=cJSON_Print(json);  //打印json
-        send_buf=add_len(out);  //头部加入长度
-        my_send(conn_fd,send_buf);  //发送数据
+        add_len(out,send_buf);  //头部加入长度
+        my_send(conn_fd,send_buf,sizeof(send_buf));  //发送数据
     }
     else   //登陆失败
     {
         json=cJSON_CreateObject(); //创建根数据对象
         cJSON_AddNumberToObject(json,"flag",111); //加入标志位键值
         out=cJSON_Print(json);  //打印json
-        send_buf=add_len(out);  //头部加入长度
-        my_send(conn_fd,send_buf);  //发送数据
+        add_len(out,send_buf);  //头部加入长度
+        my_send(conn_fd,send_buf,sizeof(send_buf));  //发送数据
 
     }
 
@@ -270,7 +277,7 @@ void register_(int conn_fd,char* out)  //注册函数
     int ret=0;   //记录注册账号是否存在，若存在则为1
     DIR* dp;   //储存目录打开返回值
     struct dirent * dir;  //储存目录信息
-    char *send_buf;  //发送数据的储存空间
+    char send_buf[1000];  //发送数据的储存空间
     char path[PATH_MAX+1]; //记录文件打开路径
     int fd; //文件描述符
 
@@ -288,7 +295,7 @@ void register_(int conn_fd,char* out)  //注册函数
 
     
 
-    if((dp=opendir("/user"))==NULL)  //打开用户目录
+    if((dp=opendir("mail_list/user"))==NULL)  //打开用户目录
     {
         my_err("opendir",__LINE__);
     }
@@ -305,12 +312,12 @@ void register_(int conn_fd,char* out)  //注册函数
         json=cJSON_CreateObject(); //创建根数据对象
         cJSON_AddNumberToObject(json,"flag",222); //加入标志位键值
         out=cJSON_Print(json);  //打印json
-        send_buf=add_len(out);  //头部加入长度
-        my_send(conn_fd,send_buf);  //发送数据
+        add_len(out,send_buf);  //头部加入长度
+        my_send(conn_fd,send_buf,sizeof(send_buf));  //发送数据
     }
     else //用户未被注册
     {
-        strcpy(path,"user/");
+        strcpy(path,"mail_list/user/");
         strcat(path,number.account);  //合成用户目录所在路径
         mkdir(path,0777);  //创建用户目录
 
@@ -326,21 +333,21 @@ void register_(int conn_fd,char* out)  //注册函数
         }
         close(fd);
 
-        strcpy(path,"user/");
+        strcpy(path,"mail_list/user/");
         strcat(path,number.account); //合成用户目录所在路径
-        strcat(path,"group");     //用户所加讨论组文件
+        strcat(path,"/group");     //用户所加讨论组文件
         fd=open(path,O_RDWR|O_CREAT|O_APPEND,0777);
         close(fd);
 
-        strcpy(path,"user/");
+        strcpy(path,"mail_list/user/");
         strcat(path,number.account); //合成用户目录所在路径
-        strcat(path,"mailqueue");   //有回帖新动态的消息队列
+        strcat(path,"/mailqueue");   //有回帖新动态的消息队列
         fd=open(path,O_RDWR|O_CREAT|O_APPEND,0777);
         close(fd);
 
-        strcpy(path,"user/");
+        strcpy(path,"mail_list/user/");
         strcat(path,number.account); //合成用户目录所在路径
-        strcat(path,"usermail");     //存放用户参与的帖子编号及名字
+        strcat(path,"/usermail");     //存放用户参与的帖子编号及名字
         fd=open(path,O_RDWR|O_CREAT|O_APPEND,0777);
         close(fd);
 
@@ -348,8 +355,8 @@ void register_(int conn_fd,char* out)  //注册函数
         json=cJSON_CreateObject(); //创建根数据对象
         cJSON_AddNumberToObject(json,"flag",22); //加入标志位键值
         out=cJSON_Print(json);  //打印json
-        send_buf=add_len(out);  //头部加入长度
-        my_send(conn_fd,send_buf);  //发送数据
+        add_len(out,send_buf);  //头部加入长度
+        my_send(conn_fd,send_buf,sizeof(send_buf));  //发送数据
 
     }
     
@@ -366,7 +373,7 @@ int main(int argc,char *argv[])
     struct epoll_event*  events;  //epoll监听事件集合
     struct sockaddr_in cli_addr;  //客户端地址
     struct sockaddr_in serv_addr;   //服务器地址
-    char recv_buf[20000];   //储存接收的json形式的数据包
+    char recv_buf[1000];   //储存接收的json形式的数据包
 
 
     //创建一个套接字
@@ -438,6 +445,7 @@ int main(int argc,char *argv[])
             }
             else if(events[i].events&EPOLLIN)    //客户端发来数据
             {
+                printf("1\n"); ////////////////////////
                 server_recv(events[i].data.fd);  //接收数据包并做处理
                 
             }
