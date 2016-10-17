@@ -42,33 +42,36 @@ typedef struct     //记录用户账号信息
 
 
 
-char* add_len(char* out);  //在数据包前加两个字节的包长度函数
-char* delete_len(char* recv_buf);    //将数据包前两个字节删除函数
+void add_len(char* out,char* send_buf);  //在数据包前加两个字节的包长度函数
+char* delete_len(char* recv_buf,int len);    //将数据包前两个字节删除函数
 void login(int conn_fd);    //登陆函数
 void register_(int conn_fd);  //注册函数
 void login_register(int conn_fd); //登陆与注册主界面函数
 void my_err();  //自定义错误函数
-void my_send(int conn_fd,char* send_buf); //自定义发送函数
-void my_recv(int conn_fd,char* recv_buf);  //自定义接收函数
+void my_send(int conn_fd,char* send_buf,int buf_len); //自定义发送函数
+void my_recv(int conn_fd,char* recv_buf,int buf_len);  //自定义接收函数
 void menu_main(); //主菜单函数
 
 
-char* add_len(char* out)  //在数据包前加两个字节的包长度函数
+void add_len(char* out,char* send_buf)  //在数据包前加两个字节的包长度函数
 {
-    int len=sizeof(out);  //储存数据包长度
-    char* send_buf;  //储存发送的数据包
-    send_buf=(char*)malloc(len+2);   //分配加长度后的数据空间
+    int len=strlen(out)+3;  //储存数据包长度
+    //char* send_buf;  //储存发送的数据包
+    //send_buf=(char*)malloc(len);   //分配加长度后的数据空间
 
     send_buf[0]=len&0xff;  //低8位储存在send_buf第一个字节
     send_buf[1]=(len>>8)&0xff;  //高8位储存在send_buf的第二个字节
+
+    printf("len=%d\n",len);///////////
+
     strcpy(send_buf+2,out);   //将json数据包里的内容复制到send_buf中
 
-    return send_buf;
+    //return send_buf;
 
 }
-char* delete_len(char* recv_buf) //将数据包前两个字节删除函数
+char* delete_len(char* recv_buf,int len) //将数据包前两个字节删除函数
 {
-    int len=sizeof(recv_buf)-2; //储存json字符串长度
+    len=len-2; //储存json字符串长度
     char *out; //储存json字符串
     out=(char*)malloc(len);  //分配空间
     strcpy(out,recv_buf+2);  //将数据包里的json字符串复制到out中
@@ -82,24 +85,24 @@ void login(int conn_fd)  //登陆函数
     int len;      //记录输入的长度
     cJSON *json;  //json储存用户账号对象
     char *out;  //储存json打印字符串
-    char *send_buf; //储存发送数据包
+    char send_buf[1000]; //储存发送数据包
     char recv_buf[1000];  //储存接收数据包
     cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
     printf("请输入账号:");
-    scanf("%s\n",account);
+    scanf("%s",account);
     while((len=strlen(account))>20) //输入长度大于20
     {
         printf("账号不能超过20个字符\n");
         scanf("%s\n",account);
     }
     printf("请输入密码:");
-    scanf("%s\n",passwd);
-    while((len=strlen(account))>0)
+    scanf("%s",passwd);
+    while((len=strlen(passwd))>20)
     {
         printf("密码不能超过20个字符\n");
-        scanf("%s\n",passwd);
+        scanf("%s",passwd);
     }
 
     json=cJSON_CreateObject(); //创建根数据对象
@@ -108,12 +111,12 @@ void login(int conn_fd)  //登陆函数
     cJSON_AddStringToObject(json,"passwd",passwd);  //加入密码键值
     out=cJSON_Print(json);  //打印json
 
-    send_buf=add_len(out);
+    add_len(out,send_buf);
     free(out); //释放内存
     cJSON_Delete(json);  //释放内存
-    my_send(conn_fd,send_buf); //发送数据
-    my_recv(conn_fd,recv_buf); //接收数据
-    out=delete_len(recv_buf); //得到json字符串
+    my_send(conn_fd,send_buf,sizeof(send_buf)); //发送数据
+    my_recv(conn_fd,recv_buf,sizeof(recv_buf)); //接收数据
+    out=delete_len(recv_buf,sizeof(recv_buf)); //得到json字符串
 
     json=cJSON_Parse(out);  //解析成cjson形式
     json_flag=cJSON_GetObjectItem(json,"flag"); //获得服务器返回的标志位
@@ -123,7 +126,7 @@ void login(int conn_fd)  //登陆函数
         case 11:   //登陆成功
         {
             printf("登陆成功,%s欢迎回来\n",account);
-            sleep(2);  //停留2秒
+            sleep(1);  //停留1秒
             return;
         }
         case 111:  //登陆失败
@@ -143,27 +146,27 @@ void register_(int conn_fd) //注册函数
     int len;   //记录输入的长度
     cJSON *json;   //json储存用户账号对象
     char *out;    //储存json打印字符串
-    char *send_buf;   //储存发送数据包
+    char send_buf[1000];   //储存发送数据包
     char recv_buf[1000];   //储存接收数据包
     cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
     printf("请输入账号:");
-    scanf("%s\n",account);
+    scanf("%s",account);
     while((len=strlen(account))>20) //输入长度大于20
     {
         printf("账号不能超过20个字符\n");
-        scanf("%s\n",account);
+        scanf("%s",account);
     }
     printf("请输入密码:");
-    scanf("%s\n",passwd);
-    while((len=strlen(account))>0)
+    scanf("%s",passwd);
+    while((len=strlen(passwd))>20)
     {
         printf("密码不能超过20个字符\n");
-        scanf("%s\n",passwd);
+        scanf("%s",passwd);
     }
     printf("请再次输入密码:");
-    scanf("%s\n",passwd2);
+    scanf("%s",passwd2);
     while(strcmp(passwd,passwd2)!=0)
     {
         printf("输入的两次密码不相同,请重新输入\n");
@@ -179,14 +182,24 @@ void register_(int conn_fd) //注册函数
     cJSON_AddStringToObject(json,"passwd",passwd);  //加入密码键值
     out=cJSON_Print(json);  //打印json
 
-    send_buf=add_len(out);
+    
+
+    add_len(out,send_buf);  //再数据包头部加上长度
+
+    
+
     free(out); //释放内存
     cJSON_Delete(json);  //释放内存
-    my_send(conn_fd,send_buf); //发送数据
-    my_recv(conn_fd,recv_buf); //接收数据
-    out=delete_len(recv_buf); //得到json字符串
+    printf("1\n");/////////////////
+    printf("strlen(send_buf)=%d\n",strlen(send_buf));//////////////////////////
+    my_send(conn_fd,send_buf,sizeof(send_buf)); //发送数据
+    my_recv(conn_fd,recv_buf,sizeof(recv_buf)); //接收数据
+    out=delete_len(recv_buf,sizeof(recv_buf)); //得到json字符串
 
     json=cJSON_Parse(out);  //解析成cjson形式
+
+
+
     json_flag=cJSON_GetObjectItem(json,"flag"); //获得服务器返回的标志位
 
     switch(json_flag->valueint)
@@ -194,7 +207,6 @@ void register_(int conn_fd) //注册函数
         case 22:   //注册成功
         {
             printf("%s注册成功\n",account);
-            sleep(2);  //停留2秒
             login_register(conn_fd);
         }
         case 111:  //注册失败
@@ -213,33 +225,39 @@ void my_err(char* err_string,int line)      //自定义错误函数
     exit(1);
 }
 
-void my_send(int conn_fd,char* send_buf)   //自定义发送函数
+void my_send(int conn_fd,char* send_buf,int buf_len)   //自定义发送函数
 {
-    if(send(conn_fd,send_buf,sizeof(send_buf),0)<0)
+    printf("2\n");////////////////////
+    int ret;
+    if((ret=send(conn_fd,send_buf,buf_len,0))<0)
     {
         my_err("send",__LINE__);
     }
+    printf("ret=%d\n",ret);////////////////
 }
-void my_recv(int conn_fd,char* recv_buf)  //自定义接收函数
+void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
 {
     int len; //储存接收数据大小
     int ret; //记录recv函数返回值
     int sum=0;  //储存已接收的字节大小
+
+    printf("4\n");/////////////////////
     
-    if((ret=recv(conn_fd,recv_buf,sizeof(recv_buf),0))<0)
+    if((ret=recv(conn_fd,recv_buf,buf_len,0))<0)
     {
         my_err("recv",__LINE__);
     }
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
     sum+=ret;
-    while(sum!=len)
+ /*   while(sum!=len)
     {
+        printf("5\n");///////////////
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    }
+    } */
 
 }
 
