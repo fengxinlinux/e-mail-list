@@ -91,26 +91,22 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     int ret; //记录recv函数返回值
     int sum=0;  //储存已接收的字节大小
 
-    printf("buf_len=%d\n",buf_len);//////////////
     
     if((ret=recv(conn_fd,recv_buf,buf_len,0))<0) 
     {
         my_err("recv",__LINE__);
     }
-    printf("111\n");//////////////
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
-    printf("len=%d\n",len);////////////////////
     sum+=ret;
-    printf("sum=%d\n",sum);  /////////////////
-   /* while(sum!=len)
+    /*while(sum!=len)
     {
-        printf("2222\n");/////////////////
+    
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    }  */
+    } */ 
 
 }
 
@@ -144,13 +140,13 @@ void contents_create()  //创建服务器初始化所需目录及文件
 void add_len(char* out,char* send_buf)  //在数据包前加两个字节的包长度函数
 {
     int len=strlen(out)+3;  //储存数据包长度
-    //char* send_buf=(char*)malloc(len);
+    
 
     send_buf[0]=len&0xff;  //低8位储存在send_buf第一个字节
     send_buf[1]=(len>>8)&0xff;  //高8位储存在send_buf的第二个字节
     strcpy(send_buf+2,out);   //将json数据包里的内容复制到send_buf中
 
-    //return send_buf;
+    
 
 }
 
@@ -158,7 +154,6 @@ char* delete_len(char* recv_buf,int len) //将数据包前两个字节删除函�
 {
     char *out; //储存json字符串
     len=len-2;
-    printf("len=%d\n",len); /////////////
     out=(char*)malloc(len);  //分配空间
     strcpy(out,recv_buf+2);  //将数据包里的json字符串复制到out中
 
@@ -183,14 +178,13 @@ void deal_main(int conn_fd,int flag,char *out)    //主功能处理函数
 }
 void server_recv(int conn_fd)    //服务器接收并解析数据包函数
 {
-    printf("2\n");/////////////////////
+
     char recv_buf[1000];   //储存接收的json形式的数据
     char *out;  //储存json字符串
     cJSON * json_flag;  //储存标志位
     cJSON * json;  //json根对象
     
     my_recv(conn_fd,recv_buf,sizeof(recv_buf));   //接收数据包
-    printf("3\n");///////////////
     out=delete_len(recv_buf,sizeof(recv_buf));    //去掉包长度数据
     json=cJSON_Parse(out); //解析成cjson形式
     json_flag=cJSON_GetObjectItem(json,"flag");   //获得服务器返回标志位
@@ -204,7 +198,8 @@ void login(int conn_fd,char* out)   //登陆函数
     cJSON * json;  //json根对象
     cJSON * json_account;  //储存账号的json
     cJSON * json_passwd;  //储存密码的json
-    user number; //储存用户账号与密码
+    user number1; //储存接收到的用户账号与密码
+    user number2;  //储存从文件读出的用户账号与密码
     int ret=0; //记录是否登陆成功，若成功则为1;
     DIR* dp;   //储存目录打开返回值
     struct dirent * dir;  //储存目录信息
@@ -217,7 +212,12 @@ void login(int conn_fd,char* out)   //登陆函数
     json_account=cJSON_GetObjectItem(json,"account");  //获得账号json
     json_passwd=cJSON_GetObjectItem(json,"passwd");    //获得密码json
 
+   
 
+    strcpy(number1.account,json_account->valuestring);//将账号复制到结构体中
+    strcpy(number1.passwd,json_passwd->valuestring);  //将密码复制到结构体中
+
+  
     cJSON_Delete(json); //释放内存
     free(out);
 
@@ -227,21 +227,23 @@ void login(int conn_fd,char* out)   //登陆函数
     }
     while((dir=readdir(dp))!=NULL)
     {
-        if(strcmp(number.account,dir->d_name)==0) //用户文件夹已存在
+        if(strcmp(number1.account,dir->d_name)==0) //用户文件夹已存在
         {
             strcpy(path,"mail_list/user/");
-            strcat(path,number.account);
+            strcat(path,number1.account);
             strcat(path,"/userinfo");
             fd=open(path,O_RDWR);
             if(fd<0)
             {
                 my_err("open",__LINE__);
             }
-            if(read(fd,&number,sizeof(user))<0)
+            if(read(fd,&number2,sizeof(user))<0)
             {
                 my_err("read",__LINE__);
             }
-            if(strcmp(number.account,json_account->valuestring)==0&&strcmp(number.passwd,json_passwd->valuestring)==0) //匹配成功
+            
+            printf("json_account=%s,json_passwd=%s\n",json_account->valuestring,json_passwd->valuestring);///////////
+            if(strcmp(number2.account,number1.account)==0&&strcmp(number2.passwd,number1.passwd)==0) //匹配成功
             {
                 ret=1;
                 break;
@@ -445,7 +447,7 @@ int main(int argc,char *argv[])
             }
             else if(events[i].events&EPOLLIN)    //客户端发来数据
             {
-                printf("1\n"); ////////////////////////
+                
                 server_recv(events[i].data.fd);  //接收数据包并做处理
                 
             }
