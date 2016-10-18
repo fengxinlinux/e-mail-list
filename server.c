@@ -98,15 +98,16 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     }
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
     sum+=ret;
-    /*while(sum!=len)
+    while(sum&&sum<len)
     {
+        printf("1\n");///////////
     
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    } */ 
+    } 
 
 }
 
@@ -242,7 +243,6 @@ void login(int conn_fd,char* out)   //登陆函数
                 my_err("read",__LINE__);
             }
             
-            printf("json_account=%s,json_passwd=%s\n",json_account->valuestring,json_passwd->valuestring);///////////
             if(strcmp(number2.account,number1.account)==0&&strcmp(number2.passwd,number1.passwd)==0) //匹配成功
             {
                 ret=1;
