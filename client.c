@@ -19,6 +19,9 @@
 #include<arpa/inet.h>
 #include<errno.h>
 #include<time.h>
+#include<termios.h>
+#include<assert.h>
+#include<stdio_ext.h>
 #include"cJSON.h"
 
 #define PORT 6666   //服务器端口
@@ -51,6 +54,66 @@ void my_err();  //自定义错误函数
 void my_send(int conn_fd,char* send_buf,int buf_len); //自定义发送函数
 void my_recv(int conn_fd,char* recv_buf,int buf_len);  //自定义接收函数
 void menu_main(); //主菜单函数
+int getch1();  //自定义无回显输入函数
+int inputkey(char * passwd); //自定义无回显密码输入函数
+
+int getch1(void)  //自定义无回显输入函数
+{
+    struct termios tm,tm_old;
+    int fd = STDIN_FILENO, c,d;
+    if(tcgetattr(fd, &tm) < 0)
+    {
+        return -1;
+    }
+    tm_old = tm;
+    cfmakeraw(&tm);
+    if(tcsetattr(fd, TCSANOW, &tm) < 0)
+    {
+        return -1;
+    }
+    c = fgetc(stdin);
+    if(tcsetattr(fd, TCSANOW, &tm_old) < 0)
+    {
+        return -1;
+    }
+    return c;
+}
+
+
+int inputkey(char *passwd)  //自定义无回显密码输入函数
+{
+    int i;
+    for(i = 0; i < 30; i++)
+    {
+        __fpurge(stdin);
+        passwd[i] = getch1();
+        if((passwd[i] == 127) && (i == 0))
+        {
+            i--;
+            continue ;
+        }
+        if(passwd[i] == 13)
+        {
+            passwd[i]=0;
+            break ;
+        }
+        else if((passwd[i] == 127) && (i > 0))
+        {
+            printf("\b \b");
+            i-=2;
+        }
+        else if(passwd[i] == 3)
+        {
+            printf("\n");
+            exit(0);
+        }
+        else
+        {
+            printf("*");
+        }
+    } 
+}
+
 
 
 void add_len(char* out,char* send_buf)  //在数据包前加两个字节的包长度函数
@@ -85,6 +148,7 @@ void login(int conn_fd)  //登陆函数
     cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
+    fflush(stdin);
     printf("请输入账号:");
     scanf("%s",account);
     while((len=strlen(account))>20) //输入长度大于20
@@ -92,12 +156,13 @@ void login(int conn_fd)  //登陆函数
         printf("账号不能超过20个字符\n");
         scanf("%s\n",account);
     }
+    fflush(stdin);
     printf("请输入密码:");
-    scanf("%s",passwd);
+    inputkey(passwd);
     while((len=strlen(passwd))>20)
     {
         printf("密码不能超过20个字符\n");
-        scanf("%s",passwd);
+        inputkey(passwd);
     }
 
     json=cJSON_CreateObject(); //创建根数据对象
@@ -120,7 +185,7 @@ void login(int conn_fd)  //登陆函数
     {
         case 11:   //登陆成功
         {
-            printf("登陆成功,%s欢迎回来\n",account);
+            printf("\n登陆成功,%s欢迎回来\n",account);
             sleep(1);  //停留1秒
             return;
         }
@@ -146,29 +211,33 @@ void register_(int conn_fd) //注册函数
     cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
+    fflush(stdin);
     printf("请输入账号:");
     scanf("%s",account);
+    fflush(stdin);
     while((len=strlen(account))>20) //输入长度大于20
     {
         printf("账号不能超过20个字符\n");
         scanf("%s",account);
     }
+    fflush(stdin);
     printf("请输入密码:");
-    scanf("%s",passwd);
+    inputkey(passwd);
     while((len=strlen(passwd))>20)
     {
         printf("密码不能超过20个字符\n");
-        scanf("%s",passwd);
+        inputkey(passwd);
     }
+    fflush(stdin);
     printf("请再次输入密码:");
-    scanf("%s",passwd2);
+    inputkey(passwd2);
     while(strcmp(passwd,passwd2)!=0)
     {
         printf("输入的两次密码不相同,请重新输入\n");
         printf("请输入密码:");
-        scanf("%s",passwd);
+        inputkey(passwd);
         printf("请再次输入密码:");
-        scanf("%s",passwd2);
+        inputkey(passwd2);
     }
 
     json=cJSON_CreateObject(); //创建根数据对象
@@ -199,7 +268,7 @@ void register_(int conn_fd) //注册函数
     {
         case 22:   //注册成功
         {
-            printf("%s注册成功\n",account);
+            printf("\n%s注册成功\n",account);
             login_register(conn_fd);
         }
         case 111:  //注册失败
