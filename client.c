@@ -56,17 +56,12 @@ void menu_main(); //主菜单函数
 void add_len(char* out,char* send_buf)  //在数据包前加两个字节的包长度函数
 {
     int len=strlen(out)+3;  //储存数据包长度
-    //char* send_buf;  //储存发送的数据包
-    //send_buf=(char*)malloc(len);   //分配加长度后的数据空间
 
     send_buf[0]=len&0xff;  //低8位储存在send_buf第一个字节
     send_buf[1]=(len>>8)&0xff;  //高8位储存在send_buf的第二个字节
 
-    printf("len=%d\n",len);///////////
-
     strcpy(send_buf+2,out);   //将json数据包里的内容复制到send_buf中
 
-    //return send_buf;
 
 }
 char* delete_len(char* recv_buf,int len) //将数据包前两个字节删除函数
@@ -190,8 +185,6 @@ void register_(int conn_fd) //注册函数
 
     free(out); //释放内存
     cJSON_Delete(json);  //释放内存
-    printf("1\n");/////////////////
-    printf("strlen(send_buf)=%d\n",strlen(send_buf));//////////////////////////
     my_send(conn_fd,send_buf,sizeof(send_buf)); //发送数据
     my_recv(conn_fd,recv_buf,sizeof(recv_buf)); //接收数据
     out=delete_len(recv_buf,sizeof(recv_buf)); //得到json字符串
@@ -227,13 +220,11 @@ void my_err(char* err_string,int line)      //自定义错误函数
 
 void my_send(int conn_fd,char* send_buf,int buf_len)   //自定义发送函数
 {
-    printf("2\n");////////////////////
     int ret;
     if((ret=send(conn_fd,send_buf,buf_len,0))<0)
     {
         my_err("send",__LINE__);
     }
-    printf("ret=%d\n",ret);////////////////
 }
 void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
 {
@@ -241,7 +232,6 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     int ret; //记录recv函数返回值
     int sum=0;  //储存已接收的字节大小
 
-    printf("4\n");/////////////////////
     
     if((ret=recv(conn_fd,recv_buf,buf_len,0))<0)
     {
@@ -249,15 +239,15 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     }
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
     sum+=ret;
- /*   while(sum!=len)
+   /* while(sum!=len)
     {
-        printf("5\n");///////////////
+    
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    } */
+    }  */
 
 }
 
