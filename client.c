@@ -239,7 +239,7 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     }
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
     sum+=ret;
-   /* while(sum!=len)
+    while(sum&&sum<len)
     {
     
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
@@ -247,7 +247,7 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
             my_err("recv",__LINE__);
         }
         sum+=ret;
-    }  */
+    }  
 
 }
 
