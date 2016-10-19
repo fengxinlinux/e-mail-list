@@ -100,7 +100,6 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     sum+=ret;
     while(sum&&sum<len)
     {
-        printf("1\n");///////////
     
         if((ret=recv(conn_fd,recv_buf+sum,len-sum,0))<0)
         {
