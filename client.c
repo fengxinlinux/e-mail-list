@@ -211,16 +211,16 @@ void register_(int conn_fd) //注册函数
     cJSON *json_flag;  //标志位
 
     system("clear"); //清屏
-    fflush(stdin);
+    //fflush(stdin);
     printf("请输入账号:");
     scanf("%s",account);
-    fflush(stdin);
+    //fflush(stdin);
     while((len=strlen(account))>20) //输入长度大于20
     {
         printf("账号不能超过20个字符\n");
         scanf("%s",account);
     }
-    fflush(stdin);
+   // fflush(stdin);
     printf("请输入密码:");
     inputkey(passwd);
     while((len=strlen(passwd))>20)
@@ -228,7 +228,8 @@ void register_(int conn_fd) //注册函数
         printf("密码不能超过20个字符\n");
         inputkey(passwd);
     }
-    fflush(stdin);
+   // fflush(stdin);
+    printf("\n");
     printf("请再次输入密码:");
     inputkey(passwd2);
     while(strcmp(passwd,passwd2)!=0)
@@ -236,6 +237,7 @@ void register_(int conn_fd) //注册函数
         printf("输入的两次密码不相同,请重新输入\n");
         printf("请输入密码:");
         inputkey(passwd);
+        printf("\n");
         printf("请再次输入密码:");
         inputkey(passwd2);
     }
@@ -270,6 +272,7 @@ void register_(int conn_fd) //注册函数
         {
             printf("\n%s注册成功\n",account);
             login_register(conn_fd);
+            break;
         }
         case 111:  //注册失败
         {
@@ -388,7 +391,7 @@ void menu_main()   //主菜单函数
     printf("              5.写新的公开邮件\n");
     printf("              6.查看所有公开邮件\n");
     printf("              7.退出\n");
-    printf("请输入选项:%s",choice);
+    printf("请输入选项:");
 
     while(1)  //储存用户选项
     {
