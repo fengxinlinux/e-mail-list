@@ -49,7 +49,7 @@ typedef struct     //记录用户账号信息
 void my_err(const char*err_string,int line);   //自定义错误函数
 char* my_time();      //输出当前时间函数
 void my_send(int conn_fd,char* send_buf,int len); //自定义发送函数
-void my_recv(int conn_fd,char* recv_buf,int len);  //自定义接收函数
+int  my_recv(int conn_fd,char* recv_buf,int len);  //自定义接收函数
 void contents_create();  //创建服务器初始化所需目录及文件
 void add_len(char* out,char* send_buf);  //在数据包前加两个字节的包长度函数
 char* delete_len(char* recv_buf,int len);    //将数据包前两个字节删除函数
@@ -85,7 +85,7 @@ void my_send(int conn_fd,char* send_buf,int buf_len)   //自定义发送函数
     }
 }
 
-void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
+int  my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
 {
     int len; //储存接收数据大小
     int ret; //记录recv函数返回值
@@ -95,6 +95,11 @@ void my_recv(int conn_fd,char* recv_buf,int buf_len)  //自定义接收函数
     if((ret=recv(conn_fd,recv_buf,buf_len,0))<0) 
     {
         my_err("recv",__LINE__);
+        
+    }
+    else if(ret==0)
+    {
+        return -1;
     }
     len=(unsigned char)recv_buf[0]+256*(unsigned char)recv_buf[1];
     sum+=ret;
@@ -184,7 +189,11 @@ void server_recv(int conn_fd)    //服务器接收并解析数据包函数
     cJSON * json_flag;  //储存标志位
     cJSON * json;  //json根对象
     
-    my_recv(conn_fd,recv_buf,sizeof(recv_buf));   //接收数据包
+    if(my_recv(conn_fd,recv_buf,sizeof(recv_buf))==-1)  //接收数据包
+    {
+        close(conn_fd);
+        return;
+    }
     out=delete_len(recv_buf,sizeof(recv_buf));    //去掉包长度数据
     json=cJSON_Parse(out); //解析成cjson形式
     json_flag=cJSON_GetObjectItem(json,"flag");   //获得服务器返回标志位
